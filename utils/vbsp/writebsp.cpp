@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
+//========= Copyright Â© 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -15,6 +15,24 @@
 #include "utilmatlib.h"
 #include "utldict.h"
 #include "map.h"
+#pragma once
+#include <stdint.h>
+#define BIG_ENDIAN_TARGET
+#define SWAP16(x) ((uint16_t)(((x) >> 8) | ((x) << 8)))
+#define SWAP32(x) ((uint32_t)(((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24)))
+
+#define SWAP_FLOAT(x) ([](float v){ uint32_t t = SWAP32(*(uint32_t*)&v); return *(float*)&t; })(x)
+
+#ifdef BIG_ENDIAN_TARGET
+    #define ENDIAN16(x) SWAP16(x)
+    #define ENDIAN32(x) SWAP32(x)
+    #define ENDIANF(x)  SWAP_FLOAT(x)
+#else
+    #define ENDIAN16(x) (x)
+    #define ENDIAN32(x) (x)
+    #define ENDIANF(x)  (x)
+#endif
+
 
 int		c_nofaces;
 int		c_facenodes;
@@ -904,6 +922,36 @@ void WriteBSP (node_t *headnode, face_t *pLeafFaceList )
 	c_facenodes = 0;
 
 	qprintf ("--- WriteBSP ---\n");
+	    dheader_t header;
+    memset(&header, 0, sizeof(header));
+
+    // Fill lump info
+    for (int i = 0; i < HEADER_LUMPS; i++)
+    {
+        header.lumps[i].fileofs = g_lumps[i].fileofs;
+        header.lumps[i].filelen = g_lumps[i].filelen;
+        header.lumps[i].version = g_lumps[i].version;
+        header.lumps[i].fourCC  = g_lumps[i].fourCC;
+    }
+
+    header.mapRevision = g_nMapRevision;
+
+    // -------------------------------
+    // Set BSP version for Xbox 360
+    header.version = 20;
+    // -------------------------------
+
+#ifdef BIG_ENDIAN_TARGET
+    SwapDHeader(&header);  // swap all numeric fields to big-endian
+#endif
+
+    SafeWrite(g_hBSPFile, &header, sizeof(header));
+
+    // Write all lumps
+    for (int i = 0; i < HEADER_LUMPS; i++)
+    {
+        WriteLump(i, g_lumps[i].data, g_lumps[i].size);
+    }
 
 	oldfaces = numfaces;
     oldorigfaces = numorigfaces;
@@ -1548,5 +1596,6 @@ void ComputeBoundsNoSkybox( )
 		}
 	}
 }
+
 
 
