@@ -1218,6 +1218,21 @@ int RunVVis( int argc, char **argv )
 	ReleasePakFileLumps();
 	DeleteCmdLine( argc, argv );
 	CmdLib_Cleanup();
+	
+#ifdef BIG_ENDIAN_TARGET
+    // Swap cluster count and size
+    numClusters = swap32(numClusters);
+    clusterBytes = swap32(clusterBytes);
+
+    // Swap all cluster offsets
+    for (int i = 0; i < MAX_MAP_CLUSTERS; i++)
+    {
+        clusterOffsets[i][0] = swap32(clusterOffsets[i][0]);
+        clusterOffsets[i][1] = swap32(clusterOffsets[i][1]);
+    }
+
+    // Optionally swap other VIS tables here if needed
+#endif
 	return 0;
 }
 
@@ -1247,7 +1262,7 @@ int main (int argc, char **argv)
 }
 
 
-// When VVIS is used as a DLL (makes debugging vmpi vvis a lot easier), this is used to
+// When VVIS is used as a DLL (makes debuggingvmpi vvis a lot easier), this is used to
 // get it going.
 class CVVisDLL : public ILaunchableDLL
 {
@@ -1259,4 +1274,5 @@ public:
 };
 
 EXPOSE_SINGLE_INTERFACE( CVVisDLL, ILaunchableDLL, LAUNCHABLE_DLL_INTERFACE_VERSION );
+
 
